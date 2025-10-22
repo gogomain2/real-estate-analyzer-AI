@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pro Real Estate Analyzer — Browser Edition</title>
+
+<!-- Chart.js for charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+:root{--bg:#f4f7fb;--card:#ffffff;--accent:#0b78e3;--muted:#6b7280}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:var(--bg); margin:0; padding:18px; color:#0f172a}
+.container{max-width:1200px;margin:0 auto}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.header h1{font-size:20px;margin:0}
+.grid{display:grid;grid-template-columns:1fr 420px;gap:18px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(12,20,40,0.06)}
+.inputs label{display:block;font-weight:600;margin-top:10px;font-size:13px}
+.row{display:flex;gap:8px}
+.field{margin-top:6px}
+.input, .select{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8;background:#fff;font-size:14px}
+.small{width:110px}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+.btn.secondary{background:#374151}
+.tip{font-size:12px;color:var(--muted);margin-left:6px;font-weight:500}
+.results h3{margin:0 0 8px 0}
+.metric{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #edf2f7}
+.metric .v{font-weight:700}
+.small-note{font-size:12px;color:var(--muted);margin-top:6px}
+.grid-right{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{height:220px}
+.footer{margin-top:14px;font-size:13px;color:var(--muted)}
+
+/* tooltip info icon */
+.info{display:inline-block;margin-left:6px;color:var(--muted);font-weight:700;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;background:#f1f5f9;font-size:12px}
+.info:hover{background:#e2eefc;color:var(--accent);cursor:help}
+
+/* responsive tweaks */
+@media(max-width:520px){.small{width:100%} .row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Pro Real Estate Analyzer — Browser Edition</h1>
+    <div style="text-align:right">
+      <div class="small-note">Single HTML file · Works offline on your phone</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card inputs">
+      <h2>Property Deal Inputs</h2>
+      <div class="field">
+        <label>Property Name / Address <span class="tip">Simple label for this deal</span></label>
+        <input id="propertyName" class="input" placeholder="123 Main St or My Duplex" />
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Property Type <span class="tip">SFR, Duplex, Condo, etc.</span></label>
+          <input id="propertyType" class="input" placeholder="Single Family" />
+        </div>
+        <div style="width:130px">
+          <label>Units <span class="tip">Number of rentable units</span></label>
+          <input id="units" type="number" class="input small" value="1" min="1" />
+        </div>
+      </div>
+
+      <hr style="margin-top:12px;border:none;border-top:1px solid #eef2f7">
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Purchase Price ($) <span class="info" title="Total price to purchase the property">i</span></label>
+          <input id="purchasePrice" class="input" type="number" value="300000" />
+        </div>
+        <div style="width:140px">
+          <label>Down Payment (%) <span class="info" title="Percent of purchase price paid upfront">i</span></label>
+          <input id="downPaymentPct" class="input small" type="number" value="20" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Interest Rate (%) <span class="info" title="Annual mortgage interest rate">i</span></label>
+          <input id="interestRate" class="input" type="number" step="0.01" value="6.5" />
+        </div>
+        <div style="width:140px">
+          <label>Loan Term (yrs) <span class="info" title="Loan duration in years">i</span></label>
+          <input id="loanTerm" class="input small" type="number" value="30" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Closing Costs ($) <span class="info" title="One-time fees: title, attorney, transfer, etc.">i</span></label>
+          <input id="closingCosts" class="input" type="number" value="4000" />
+        </div>
+        <div style="width:140px">
+          <label>Rehab Cost ($) <span class="info" title="Renovation or repair costs">i</span></label>
+          <input id="rehabCost" class="input small" type="number" value="20000" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>After Repair Value (ARV) ($) <span class="info" title="Estimated value after rehab">i</span></label>
+          <input id="arv" class="input" type="number" value="350000" />
+        </div>
+        <div style="width:140px">
+          <label>Vacancy Rate (%) <span class="info" title="Percent of time unit is vacant annually">i</span></label>
+          <input id="vacancyRate" class="input small" type="number" value="7" />
+        </div>
+      </div>
+
+      <h3 style="margin-top:14px">Monthly / Annual Expenses</h3>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Property Tax (annual $) <span class="info" title="Annual property tax">i</span></label>
+          <input id="propertyTax" class="input" type="number" value="3600" />
+        </div>
+        <div style="width:140px">
+          <label>Insurance (annual $) <span class="info" title="Annual insurance">i</span></label>
+          <input id="insurance" class="input small" type="number" value="1200" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Utilities (monthly $) <span class="info" title="If owner pays utilities">i</span></label>
+          <input id="utilities" class="input" type="number" value="200" />
+        </div>
+        <div style="width:140px">
+          <label>Maintenance (monthly $) <span class="info" title="Reserve for repairs">i</span></label>
+          <input id="maintenance" class="input small" type="number" value="150" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Property Management Fee (%) <span class="info" title="Percent of rent paid to manager">i</span></label>
+          <input id="managementFee" class="input" type="number" value="8" />
+        </div>
+        <div style="width:140px">
+          <label>HOA Fee (monthly $) <span class="info" title="HOA / Condo fees">i</span></label>
+          <input id="hoa" class="input small" type="number" value="0" />
+        </div>
+      </div>
+
+      <h3 style="margin-top:14px">Income (monthly)</h3>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Base Rent (total all units) ($) <span class="info" title="Gross rent expected per month">i</span></label>
+          <input id="rent" class="input" type="number" value="2500" />
+        </div>
+        <div style="width:140px">
+          <label>Other Income ($) <span class="info" title="Laundry, parking, storage, etc.">i</span></label>
+          <input id="otherIncome" class="input small" type="number" value="0" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="calcBtn" class="btn">Calculate</button>
+        <button id="resetBtn" class="btn secondary">Reset</button>
+        <button id="exportCsv" class="btn secondary">Export CSV</button>
+        <button id="exportPdf" class="btn secondary">Export PDF</button>
+      </div>
+
+      <div class="small-note">Each input includes a tooltip (hover the "i" icon) with a short description for beginners.</div>
+    </div>
+
+    <div class="grid-right">
+      <div class="card results">
+        <h2>Summary & Key Metrics</h2>
+        <div style="margin-top:8px">
+          <div class="metric"><div>Purchase Price</div><div class="v" id="out_purchase"></div></div>
+          <div class="metric"><div>Total Initial Investment</div><div class="v" id="out_total_investment"></div></div>
+          <div class="metric"><div>Monthly Mortgage Payment</div><div class="v" id="out_mortgage"></div></div>
+          <div class="metric"><div>Monthly Operating Expenses (ex-mortgage)</div><div class="v" id="out_monthly_expenses"></div></div>
+          <div class="metric"><div>Monthly Net Cash Flow</div><div class="v" id="out_cashflow"></div></div>
+          <div class="metric"><div>Net Operating Income (annual)</div><div class="v" id="out_noi"></div></div>
+          <div class="metric"><div>Cap Rate (%)</div><div class="v" id="out_caprate"></div></div>
+          <div class="metric"><div>Cash-on-Cash Return (%)</div><div class="v" id="out_coc"></div></div>
+          <div class="metric"><div>5-Year Projected ROI (%)</div><div class="v" id="out_roi5"></div></div>
+          <div class="metric"><div>10-Year Projected ROI (%)</div><div class="v" id="out_roi10"></div></div>
+        </div>
+
+        <h3 style="margin-top:12px">AI-style Summary</h3>
+        <div id="aiSummary" style="white-space:pre-wrap;padding:8px;background:#fbfdff;border-radius:8px;border:1px dashed #e6eef8"></div>
+      </div>
+
+      <div class="card">
+        <h3>Charts</h3>
+        <div class="canvas-wrap"><canvas id="chartCashflow"></canvas></div>
+        <div style="height:12px"></div>
+        <div class="canvas-wrap"><canvas id="chartEquity"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h3>Amortization Snapshot</h3>
+        <div id="amortText" class="small-note"></div>
+        <div style="margin-top:8px"><button id="showSchedule" class="btn secondary">Show Full Amortization Table</button></div>
+        <div id="amortTableWrap" style="margin-top:12px;display:none;max-height:260px;overflow:auto"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">Tips: Save this HTML file to your iPhone (Files app) or host it on GitHub Pages for a permanent URL. Works offline once loaded.</div>
+</div>
+
+<script>
+// Utility functions
+const $ = id => document.getElementById(id);
+const fmt = n => typeof n === 'number' ? n.toLocaleString(undefined,{maximumFractionDigits:0}) : n;
+const money = n => '$' + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+const pct = n => Number(n).toFixed(2) + '%';
+
+function getInputs(){
+  return {
+    propertyName: $('propertyName').value || '',
+    propertyType: $('propertyType').value || '',
+    units: Number($('units').value||1),
+    purchasePrice: Number($('purchasePrice').value||0),
+    downPct: Number($('downPaymentPct').value||0),
+    interest: Number($('interestRate').value||0),
+    term: Number($('loanTerm').value||30),
+    closingCosts: Number($('closingCosts').value||0),
+    rehab: Number($('rehabCost').value||0),
+    arv: Number($('arv').value||0),
+    vacancy: Number($('vacancyRate').value||0),
+    propertyTax: Number($('propertyTax').value||0),
+    insurance: Number($('insurance').value||0),
+    utilities: Number($('utilities').value||0),
+    maintenance: Number($('maintenance').value||0),
+    managementFeePct: Number($('managementFee').value||0),
+    hoa: Number($('hoa').value||0),
+    rent: Number($('rent').value||0),
+    otherIncome: Number($('otherIncome').value||0)
+  }
+}
+
+// Mortgage monthly payment
+function monthlyMortgage(p, downPct, ratePct, years){
+  const loan = p*(1 - downPct/100);
+  const r = ratePct/100/12;
+  const n = years*12;
+  if(r === 0) return loan / n;
+  return loan * r / (1 - Math.pow(1+r, -n));
+}
+
+// Amortization schedule (first N years snapshot)
+function amortSchedule(p, downPct, ratePct, years, monthsToShow=120){
+  const loan = p*(1 - downPct/100);
+  const r = ratePct/100/12;
+  const n = years*12;
+  const payment = monthlyMortgage(p, downPct, ratePct, years);
+  let balance = loan;
+  const rows = [];
+  for(let i=1;i<=Math.min(n, monthsToShow);i++){
+    const interest = balance * r;
+    const principal = payment - interest;
+    balance = Math.max(0, balance - principal);
+    rows.push({month:i, payment, interest, principal, balance});
+  }
+  return {rows, payment, loan};
+}
+
+// Main calculate function
+function calculate(){
+  const inpt = getInputs();
+  const mortgage = monthlyMortgage(inpt.purchasePrice, inpt.downPct, inpt.interest, inpt.term);
+  const monthlyPropertyTax = inpt.propertyTax / 12;
+  const monthlyInsurance = inpt.insurance / 12;
+  const managementFee = (inpt.rent + inpt.otherIncome) * inpt.managementFeePct/100;
+  const totalGrossRent = inpt.rent + inpt.otherIncome;
+  const vacancyLoss = totalGrossRent * inpt.vacancy/100;
+  const effectiveGrossIncome = totalGrossRent - vacancyLoss;
+  const operatingExpenses = monthlyPropertyTax + monthlyInsurance + inpt.utilities + inpt.maintenance + managementFee + inpt.hoa;
+  const noiMonthly = effectiveGrossIncome - operatingExpenses;
+  const monthlyCashFlow = noiMonthly - mortgage;
+  const noiAnnual = noiMonthly * 12;
+  const capRate = inpt.purchasePrice ? (noiAnnual / inpt.purchasePrice * 100) : 0;
+  const downPaymentAmount = inpt.purchasePrice * inpt.downPct/100;
+  const totalInitialInvestment = downPaymentAmount + inpt.closingCosts + inpt.rehab;
+  const annualCashFlow = monthlyCashFlow * 12;
+  const cashOnCash = totalInitialInvestment ? (annualCashFlow / totalInitialInvestment * 100) : 0;
+
+  // Projections (simplified): rent growth and appreciation, no refinance
+  const rentGrowth = 0.025; // 2.5% per year
+  const appreciation = 0.03; // 3% per year
+  function projection(years){
+    let futurePurchase = inpt.purchasePrice * Math.pow(1+appreciation, years);
+    // naive equity calc: assume current loan principal approx = purchase - down
+    const loan = inpt.purchasePrice * (1 - inpt.downPct/100);
+    const futureEquity = futurePurchase - loan; // simplistic
+    // cash returns over period
+    const avgAnnualCash = annualCashFlow * (1 + rentGrowth*years/2); // rough avg
+    const totalCash = avgAnnualCash * years;
+    const roi = totalInitialInvestment ? ((futureEquity + totalCash) / totalInitialInvestment - 1) * 100 : 0;
+    return roi;
+  }
+
+  const roi5 = projection(5);
+  const roi10 = projection(10);
+
+  // Update UI outputs
+  $('out_purchase').innerText = money(inpt.purchasePrice);
+  $('out_total_investment').innerText = money(totalInitialInvestment);
+  $('out_mortgage').innerText = money(mortgage.toFixed(2));
+  $('out_monthly_expenses').innerText = money(operatingExpenses.toFixed(2));
+  $('out_cashflow').innerText = money(monthlyCashFlow.toFixed(2));
+  $('out_noi').innerText = money(noiAnnual.toFixed(0));
+  $('out_caprate').innerText = capRate.toFixed(2) + '%';
+  $('out_coc').innerText = cashOnCash.toFixed(2) + '%';
+  $('out_roi5').innerText = roi5.toFixed(2) + '%';
+  $('out_roi10').innerText = roi10.toFixed(2) + '%';
+
+  // AI-style summary (deterministic)
+  let advice = [];
+  if(monthlyCashFlow >= 500){
+    advice.push(`Strong positive cash flow of ${money(monthlyCashFlow.toFixed(0))}/month — great for steady income.`);
+  } else if(monthlyCashFlow > 0){
+    advice.push(`Slight positive cash flow of ${money(monthlyCashFlow.toFixed(0))}/month — consider optimizing expenses or rent.`);
+  } else {
+    advice.push(`Negative cash flow of ${money(monthlyCashFlow.toFixed(0))}/month — consider negotiating price, increasing down payment, or lowering rehab costs.`);
+  }
+  if(capRate >= 6.5) advice.push(`Cap rate of ${capRate.toFixed(2)}% is healthy for many markets.`);
+  else advice.push(`Cap rate of ${capRate.toFixed(2)}% is below typical target; rely on appreciation or reduce costs.`);
+  if(cashOnCash >= 8) advice.push(`Cash-on-cash return of ${cashOnCash.toFixed(2)}% is solid.`);
+  else advice.push(`Cash-on-cash return of ${cashOnCash.toFixed(2)}% is modest; consider improving financing or lowering initial investment.`);
+
+  // Risk level
+  let risk = "Moderate";
+  if(monthlyCashFlow < 0 || capRate < 4) risk = "High";
+  else if(monthlyCashFlow > 800 && capRate > 8) risk = "Low";
+
+  $('aiSummary').innerText = advice.join(' ') + '\n\nRisk Level: ' + risk + '\n\nComputed Metrics: Cap Rate ' + capRate.toFixed(2) + '% · Cash-on-Cash ' + cashOnCash.toFixed(2) + '%';
+
+  // Charts
+  drawCharts(monthlyCashFlow, noiMonthly, inpt, annualCashFlow);
+
+  // Amortization snapshot
+  const amort = amortSchedule(inpt.purchasePrice, inpt.downPct, inpt.interest, inpt.term, 120);
+  $('amortText').innerText = `Loan amount: ${money(amort.loan.toFixed(0))} · Monthly payment: ${money(amort.payment.toFixed(2))} · Showing first ${amort.rows.length} months.`;
+  // create small table preview
+  const wrap = $('amortTableWrap');
+  wrap.innerHTML = '';
+  const table = document.createElement('table');
+  table.style.width='100%'; table.style.borderSpacing='6px';
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr style="font-weight:700"><td>Month</td><td>Payment</td><td>Interest</td><td>Principal</td><td>Balance</td></tr>';
+  table.appendChild(thead);
+  const tb = document.createElement('tbody');
+  amort.rows.slice(0,24).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.month}</td><td>${money(r.payment.toFixed(2))}</td><td>${money(r.interest.toFixed(2))}</td><td>${money(r.principal.toFixed(2))}</td><td>${money(r.balance.toFixed(0))}</td>`;
+    tb.appendChild(tr);
+  });
+  table.appendChild(tb);
+  wrap.appendChild(table);
+
+  // store last results for export
+  window._lastCalc = {inpt, mortgage, operatingExpenses, monthlyCashFlow, noiAnnual, capRate, cashOnCash, roi5, roi10, amort};
+}
+
+let chartCashflow = null, chartEquity = null;
+function drawCharts(monthlyCashFlow, noiMonthly, inpt, annualCashFlow){
+  // Cashflow over 10 years (assume rent growth)
+  const years = 10;
+  const rentGrowth = 0.025;
+  const labels = [];
+  const cashData = [];
+  const equityData = [];
+  let baseRent = inpt.rent + inpt.otherIncome;
+  let purchase = inpt.purchasePrice;
+  let loan = inpt.purchasePrice*(1-inpt.downPct/100);
+  for(let y=0;y<=years;y++){
+    labels.push(String(y));
+    const rentY = baseRent * Math.pow(1+rentGrowth, y);
+    const noiY = (rentY - (rentY*inpt.vacancy/100)) - (inpt.propertyTax/12 + inpt.insurance/12 + inpt.utilities + inpt.maintenance + (rentY*inpt.managementFeePct/100) + inpt.hoa);
+    const cashY = noiY - monthlyMortgage(purchase, inpt.downPct, inpt.interest, inpt.term);
+    cashData.push(Math.round(cashY*12));
+    // naive equity growth: purchase appreciates
+    const futureVal = purchase * Math.pow(1+0.03, y);
+    const equity = Math.round(futureVal - loan);
+    equityData.push(equity);
+  }
+
+  const ctx = $('chartCashflow').getContext('2d');
+  if(chartCashflow) chartCashflow.destroy();
+  chartCashflow = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets:[{label:'Annual Cash Flow (USD)', data:cashData, backgroundColor:'rgba(11,120,227,0.8)'}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+
+  const ctx2 = $('chartEquity').getContext('2d');
+  if(chartEquity) chartEquity.destroy();
+  chartEquity = new Chart(ctx2, {
+    type:'line',
+    data:{labels, datasets:[{label:'Projected Equity (USD)', data:equityData, fill:false, borderColor:'rgba(11,120,227,0.9)', tension:0.3}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:false}}}
+  });
+}
+
+// Export CSV
+function exportCSV(){
+  if(!window._lastCalc) { alert('Please calculate first'); return; }
+  const L = window._lastCalc;
+  const rows = [
+    ['Field','Value'],
+    ['Property', L.inpt.propertyName || ''],
+    ['Purchase Price', L.inpt.purchasePrice],
+    ['Down %', L.inpt.downPct],
+    ['Loan Term (yrs)', L.inpt.term],
+    ['Interest %', L.inpt.interest],
+    ['Rehab', L.inpt.rehab],
+    ['Closing', L.inpt.closingCosts],
+    ['Total Initial Investment', (L.inpt.purchasePrice * L.inpt.downPct/100) + L.inpt.closingCosts + L.inpt.rehab],
+    ['Monthly Mortgage', L.mortgage.toFixed(2)],
+    ['Monthly Expenses', L.operatingExpenses ? L.operatingExpenses.toFixed(2) : ''],
+    ['Monthly Cash Flow', L.monthlyCashFlow.toFixed(2)],
+    ['Cap Rate', L.capRate ? L.capRate.toFixed(2) + '%' : ''],
+    ['Cash on Cash', L.cashOnCash ? L.cashOnCash.toFixed(2) + '%' : '']
+  ];
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'deal_export.csv'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Export PDF (simple)
+async function exportPDF(){
+  if(!window._lastCalc) { alert('Please calculate first'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt',format:'letter'});
+  const L = window._lastCalc;
+  doc.setFontSize(14); doc.text('Real Estate Deal Analysis',40,40);
+  doc.setFontSize(10);
+  doc.text(`Property: ${L.inpt.propertyName || ''}`,40,60);
+  doc.text(`Purchase Price: $${L.inpt.purchasePrice.toLocaleString()}`,40,76);
+  doc.text(`Total Initial Investment: $${(((L.inpt.purchasePrice * L.inpt.downPct/100) + L.inpt.closingCosts + L.inpt.rehab)).toLocaleString()}`,40,92);
+  doc.text(`Monthly Cash Flow: $${Math.round(L.monthlyCashFlow)}`,40,108);
+  doc.text(`Cap Rate: ${L.capRate.toFixed(2)}%`,40,124);
+  doc.text(`Cash-on-Cash: ${L.cashOnCash.toFixed(2)}%`,40,140);
+  doc.text('AI Summary:',40,170);
+  const summaryLines = (document.getElementById('aiSummary').innerText || '').split('\n');
+  let y = 186;
+  summaryLines.forEach(line=>{doc.text(line,40,y); y+=14});
+  doc.save('deal_summary.pdf');
+}
+
+// UI wiring
+document.getElementById('calcBtn').addEventListener('click', calculate);
+document.getElementById('resetBtn').addEventListener('click', ()=>{ location.reload(); });
+document.getElementById('exportCsv').addEventListener('click', exportCSV);
+document.getElementById('exportPdf').addEventListener('click', exportPDF);
+document.getElementById('showSchedule').addEventListener('click', ()=>{
+  const wrap = $('amortTableWrap');
+  if(wrap.style.display === 'none' || wrap.style.display==='') wrap.style.display='block';
+  else wrap.style.display='none';
+});
+
+// initial calculate on load
+window.addEventListener('DOMContentLoaded', ()=>{ calculate(); });
+</script>
+</body>
+</html>
